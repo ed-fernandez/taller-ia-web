@@ -1,6 +1,6 @@
 // Taller IA · service worker: la app abre sin conexión y recibe lo que se comparte desde otras apps.
 // Al publicar cambios, sube la versión para que los dispositivos renueven la copia.
-const V = 'taller-ia-1.4.0';
+const V = 'taller-ia-1.4.1';
 const SHELL = ['./', 'index.html', 'app.css', 'app.js', 'backend.js', 'media.js', 'store.js', 'voz.js', 'config.js', 'manifest.webmanifest',
   'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png', 'fonts/archivo-latin-wdth-normal.woff2'];
 

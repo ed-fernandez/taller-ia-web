@@ -6,7 +6,7 @@ import { createBackend, PinError, NetError } from './backend.js';
 import { VoiceRecorder, Camera, processImage, videoInfo, fixWebmDuration, canRecord, canCamera } from './media.js';
 import { trocear } from './voz.js';
 
-const VERSION = '1.4.0';
+const VERSION = '1.4.1';
 const CFG = window.TALLER_CONFIG || {};
 const QS = new URLSearchParams(location.search);
 const DEMO = !!CFG.demo || QS.has('demo');
@@ -197,9 +197,12 @@ function syncListen() {
   });
 }
 
+// Consulta contestada junto con la siguiente: la cola junta los mensajes seguidos de un coche en un solo diagnóstico
+// y lo pone en el último. Las anteriores llevan `agrupado_en`: no son un diagnóstico ni se leen en voz alta.
+const agrupada = (r) => !!(r && r.agrupado_en);
 // Lo que se dice en voz alta de una respuesta
 function sayOf(r) {
-  if (!r) return '';
+  if (!r || agrupada(r)) return '';
   if (r._error) return 'No he podido terminar este diagnóstico. Ed ya está avisado. Si quieres, pulsa Volver a enviar.';
   return [r.respuesta_voz, r.seguridad ? 'Atención: ' + r.seguridad : ''].filter(Boolean).join('. ');
 }
@@ -244,6 +247,7 @@ function chime() {
 async function notify(c, r) {
   if (!S.notify || !('Notification' in window) || Notification.permission !== 'granted') return;
   const title = 'Diagnóstico listo: ' + c.vehicle;
+  if (agrupada(r)) return;
   const opt = { body: r.hipotesis_principal || r.respuesta_voz || '', tag: c.id, icon: 'icons/icon-192.png' };
   try {
     const reg = navigator.serviceWorker && await navigator.serviceWorker.getRegistration();
@@ -292,7 +296,7 @@ async function selectCase(id, leer) {
   schedule();
   if (leer && id === S.current) readLast();
 }
-const lastAnswer = () => { const m = S.messages.slice().reverse().find((x) => x.respuesta); return m || null; };
+const lastAnswer = () => { const m = S.messages.slice().reverse().find((x) => x.respuesta && !agrupada(x.respuesta)); return m || null; };
 function readLast() {
   const m = lastAnswer();
   if (!m || capturing()) return;
@@ -331,7 +335,7 @@ function removeCase(c) {
 }
 function noteCase(c, list) {
   const last = list[list.length - 1];
-  const r = last && last.respuesta;
+  const r = last && !agrupada(last.respuesta) ? last.respuesta : null;
   c.last = last ? { busy: list.some((m) => !m.respuesta), err: !!(r && r._error), n: list.length, text: String(r ? (r._error ? 'No se ha podido completar' : r.hipotesis_principal || r.respuesta_voz || '') : last.texto || '').slice(0, 90) } : null;
   list.forEach((m) => { if (m.respuesta && m.respuesta.vehiculo && (isAuto(c) || (c.remote && !c.named))) c.vehicle = vehicleName(m.respuesta.vehiculo) || c.vehicle; });
   if (last) c.act = Math.max(c.act || 0, Date.parse(last.ts) || 0);
@@ -596,6 +600,7 @@ function errorCard(m, isFresh) {
 }
 function parte(m, isFresh) {
   const r = m.respuesta || {};
+  if (agrupada(r)) return h('p', { class: 'agrupado', dataset: { id: m.id } }, icon('check'), 'Respondido junto con el siguiente mensaje');
   if (r._error) return errorCard(m, isFresh);
   const el = h('article', { class: 'parte' + (isFresh ? ' fresh' : ''), dataset: { id: m.id } });
   el.append(h('div', { class: 'parte-head' }, h('span', { class: 'parte-kind' }, 'Diagnóstico'), h('span', { class: 'parte-no' }, 'N.º ' + m.id)));
@@ -641,7 +646,7 @@ function renderChat(toBottom) {
   if (!S.messages.length && !local.length) kids.push(emptyState());
   S.messages.forEach((m) => {
     kids.push(bubble(m.texto, resolveFiles(c.id, m.files), '', h('div', { class: 'me-meta' }, hhmm(m.ts))));
-    if (m.respuesta) { const p = parte(m, fresh.has(m.id)); if (fresh.has(m.id) && !first) first = p; kids.push(p); }
+    if (m.respuesta) { const p = parte(m, fresh.has(m.id)); if (fresh.has(m.id) && !first && !agrupada(m.respuesta)) first = p; kids.push(p); }
     else kids.push(jobCard(m));
   });
   local.forEach((o) => kids.push(outboxBubble(o)));
@@ -823,7 +828,8 @@ async function refresh() {
     saveCases();
     const now = list.map((m) => `${m.id}:${m.estado}:${m.respuesta ? 1 : 0}`).join('|') + '#' + S.outbox.map((o) => o.lid + o.status).join('|');
     if (now !== sig || name !== c.vehicle) { sig = now; renderChat(); renderHeader(); renderCars(); refreshHint(); }
-    if (news.length) announce(c, news[news.length - 1]);
+    const dx = news.filter((x) => !agrupada(x.respuesta));        // las agrupadas no se anuncian: se anuncia su diagnóstico
+    if (dx.length) announce(c, dx[dx.length - 1]);
   } catch (e) {
     if (e instanceof PinError) lock('El PIN ha cambiado. Escríbelo otra vez.');
   } finally { refreshing = false; }
@@ -844,7 +850,7 @@ async function refreshOthers() {
         c.news = true;
         const last = list[list.length - 1];
         announceOther(c, 1);
-        if (document.hidden && last && last.respuesta) notify(c, last.respuesta);
+        if (document.hidden && last && last.respuesta && !agrupada(last.respuesta)) notify(c, last.respuesta);
       }
       saveCases(); renderHeader(); renderCars();
     } catch { /* se reintenta */ }

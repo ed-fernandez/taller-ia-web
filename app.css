@@ -197,6 +197,9 @@ p { margin: 0; }
 .parte.err .parte-kind { display: inline-flex; align-items: center; gap: 6px; color: var(--red); font-weight: 700; }
 .parte.err .parte-kind .ic { width: 18px; height: 18px; }
 .parte.err .parte-bar .btn { width: 100%; }
+/* consulta contestada junto con la siguiente: una línea discreta, no un parte */
+.agrupado { align-self: flex-end; display: flex; align-items: center; gap: 6px; margin: -2px 4px 0; color: var(--ink-3); font-size: .86rem; }
+.agrupado .ic { width: 15px; height: 15px; }
 .err-note { margin-top: 10px; color: var(--ink-2); font-size: 15px; }
 
 /* ------------------------------------------------------------ bandeja de adjuntos */
