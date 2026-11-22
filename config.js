@@ -6,4 +6,5 @@
 //
 // Si el alojamiento es privado, se puede fijar aquí:  window.TALLER_CONFIG = { queueUrl: "https://script.google.com/macros/s/<ID>/exec" };
 // Otras opciones:  demo: true (simula el taller, para capturas y pruebas) · pinLength: 6
+//                  avisarEd: "https://wa.me/34XXXXXXXXX" o "mailto:…" (botón «Avisar a Ed» cuando la cola no contesta)
 window.TALLER_CONFIG = {};
